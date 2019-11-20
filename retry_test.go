@@ -1,9 +1,12 @@
 package retryrequest
 
 import (
+	"context"
+	"errors"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -24,6 +27,19 @@ var handlerAlwaysTimeout = http.HandlerFunc(func(w http.ResponseWriter, r *http.
 	case <-r.Context().Done():
 	case <-time.After(time.Hour):
 	}
+})
+
+// Takes a second to finish processing
+var handlerSecond = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+
+	// Block
+	select {
+	case <-r.Context().Done():
+	case <-time.After(time.Second):
+	}
+
+	w.Write([]byte("Done"))
 })
 
 // Returns 500 until after X requests are made
@@ -128,6 +144,57 @@ func TestRetryTimeout(t *testing.T) {
 
 	if ne, ok := err.(net.Error); ok && !ne.Timeout() {
 		t.Fatalf("expected timeout error, got: %#v", err)
+	}
+
+	if resp != nil {
+		t.Fatalf("Invalid response: %v", resp)
+	}
+}
+
+func TestContextTimeout(t *testing.T) {
+
+	// Mock server which always responds 500.
+	ts := httptest.NewServer(handlerAlwaysTimeout)
+	defer ts.Close()
+
+	// Create the client. Use short retry windows so we fail faster.
+	client := &http.Client{
+		Timeout: time.Millisecond * 100,
+	}
+
+	// Create the request
+	req, err := http.NewRequest("GET", ts.URL, nil)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	req = req.WithContext(ctx)
+
+	go func() {
+		<-time.After(time.Millisecond * 10)
+		cancel()
+	}()
+
+	resp, err := Do(client, req, 2, time.Millisecond*100)
+
+	// Checking our cancel of the context is challenging
+	// https://github.com/golang/go/blob/cc8838d645b2b7026c1f3aaceb011775c5ca3a08/src/net/http/client.go#L645-L649
+
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("Expected: %q, got %q", ctx.Err(), err)
+	}
+
+	// if err == nil {
+	// 	t.Fatalf("expected error, got: %#v", err)
+	// }
+	//
+	// if ne, ok := err.(net.Error); ok && !ne.Timeout() {
+	// 	t.Fatalf("expected timeout error, got: %v", err)
+	// }
+
+	if !strings.Contains(err.Error(), ctx.Err().Error()) {
+		t.Fatalf("expected context timeout error, got: %v", err)
 	}
 
 	if resp != nil {

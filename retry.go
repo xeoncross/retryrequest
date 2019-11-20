@@ -22,13 +22,12 @@ func Do(client *http.Client, req *http.Request, attempts int, delay time.Duratio
 
 		if !shouldRetry {
 			if err != nil {
-				if resp.Body != nil {
-					resp.Body.Close()
-				}
 				return nil, err
 			}
 
 			return resp, nil
+		} else if err == nil && resp.Body != nil {
+			resp.Body.Close()
 		}
 
 		select {
