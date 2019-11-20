@@ -11,8 +11,6 @@ import (
 	"time"
 )
 
-// https://github.com/hashicorp/go-retryablehttp/blob/master/client_test.go#L132
-
 // Always returns 500
 var handlerAlways500 = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -107,7 +105,6 @@ func TestRetryClient(t *testing.T) {
 	}
 
 	resp, err := Do(client, req, 3, time.Millisecond)
-	// resp, err := client.Do(req)
 
 	if err != nil {
 		t.Fatalf("unexpected error, got: %#v", err)
@@ -136,7 +133,6 @@ func TestRetryTimeout(t *testing.T) {
 	}
 
 	resp, err := Do(client, req, 2, time.Millisecond)
-	// resp, err := client.Do(req)
 
 	if err == nil {
 		t.Fatalf("expected error, got: %#v", err)
@@ -185,10 +181,6 @@ func TestContextTimeout(t *testing.T) {
 		t.Fatalf("Expected: %q, got %q", ctx.Err(), err)
 	}
 
-	// if err == nil {
-	// 	t.Fatalf("expected error, got: %#v", err)
-	// }
-	//
 	// if ne, ok := err.(net.Error); ok && !ne.Timeout() {
 	// 	t.Fatalf("expected timeout error, got: %v", err)
 	// }
