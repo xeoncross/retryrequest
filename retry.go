@@ -7,6 +7,42 @@ import (
 	"github.com/hashicorp/go-retryablehttp"
 )
 
+// Do HTTP request, retrying if server times out or sends a 500 error
+func Do(client *http.Client, req *http.Request, attempts int, delay time.Duration) (*http.Response, error) {
+
+	var err error
+	var resp *http.Response
+
+	for i := 0; i < attempts; i++ {
+
+		resp, err = client.Do(req)
+		// fmt.Printf("%s: %v\n", req.URL, err)
+
+		shouldRetry, _ := retryablehttp.DefaultRetryPolicy(req.Context(), resp, err)
+
+		if !shouldRetry {
+			if err != nil {
+				if resp.Body != nil {
+					resp.Body.Close()
+				}
+				return nil, err
+			}
+
+			return resp, nil
+		}
+
+		select {
+		case <-req.Context().Done():
+			return nil, req.Context().Err()
+		case <-time.After(delay):
+		}
+
+	}
+
+	return nil, err
+}
+
+// TODO considering moving to a whitelist approach with options provided by caller
 // CustomRetryPolicy will retry on certain connection and server errors
 // Based on https://github.com/hashicorp/go-retryablehttp/blob/f1bc72b7b3c24d61ec70f911dbe703af3ea67df2/client.go#L356-L395
 // func CustomRetryPolicy(ctx context.Context, resp *http.Response, err error) bool {
@@ -42,37 +78,3 @@ import (
 //
 // 	return false
 // }
-
-// Do HTTP request, retrying if server times out or sends a 500 error
-func Do(client *http.Client, req *http.Request, attempts int, delay time.Duration) (*http.Response, error) {
-
-	var err error
-	var resp *http.Response
-
-	for i := 0; i < attempts; i++ {
-
-		resp, err = client.Do(req)
-
-		shouldRetry, _ := retryablehttp.DefaultRetryPolicy(req.Context(), resp, err)
-
-		if !shouldRetry {
-			if err != nil {
-				if resp.Body != nil {
-					resp.Body.Close()
-				}
-				return nil, err
-			}
-
-			return resp, nil
-		}
-
-		select {
-		case <-req.Context().Done():
-			return nil, req.Context().Err()
-		case <-time.After(delay):
-		}
-
-	}
-
-	return nil, err
-}

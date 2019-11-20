@@ -2,6 +2,21 @@
 
 Simple package to retry http.Client requests.
 
+Usage:
+
+Normal requests are performed the following way:
+
+```go
+resp, err := client.Do(req)
+```
+
+To use this library simply call `retryrequest.Do` instead:
+
+```go
+resp, err := retryrequest.Do(client, req, 3, time.Second)
+```
+
+
 ---
 
 Recommendation: use [github.com/hashicorp/go-retryablehttp](https://github.com/hashicorp/go-retryablehttp) instead
