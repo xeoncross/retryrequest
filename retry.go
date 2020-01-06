@@ -15,6 +15,12 @@ func Do(client *http.Client, req *http.Request, attempts int, delay time.Duratio
 
 	for i := 0; i < attempts; i++ {
 
+		// After first attempt, response might be populated
+		// Close to prevent memory leak
+		if resp != nil && resp.Body != nil {
+			resp.Body.Close()
+		}
+
 		resp, err = client.Do(req)
 
 		shouldRetry := CustomRetryPolicy(req.Context(), resp, err)
@@ -23,13 +29,10 @@ func Do(client *http.Client, req *http.Request, attempts int, delay time.Duratio
 			break
 		}
 
-		if err == nil && resp.Body != nil {
-			resp.Body.Close()
-		}
-
 		select {
 		case <-req.Context().Done():
-			return nil, req.Context().Err()
+			err = req.Context().Err()
+			break
 		case <-time.After(delay):
 		}
 
@@ -38,8 +41,8 @@ func Do(client *http.Client, req *http.Request, attempts int, delay time.Duratio
 	return resp, err
 }
 
-// TODO considering moving to a whitelist approach with options provided by caller
 // CustomRetryPolicy will retry on certain connection and server errors
+// TODO considering moving to a whitelist approach with options provided by caller
 // Based on https://github.com/hashicorp/go-retryablehttp/blob/f1bc72b7b3c24d61ec70f911dbe703af3ea67df2/client.go#L356-L395
 func CustomRetryPolicy(ctx context.Context, resp *http.Response, err error) bool {
 	// do not retry on context.Canceled or context.DeadlineExceeded
