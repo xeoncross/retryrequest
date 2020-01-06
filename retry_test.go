@@ -135,7 +135,7 @@ func TestRetryTimeout(t *testing.T) {
 	resp, err := Do(client, req, 2, time.Millisecond)
 
 	if err == nil {
-		t.Fatalf("expected error, got: %#v", err)
+		t.Fatalf("expected error, got: %w", err)
 	}
 
 	if ne, ok := err.(net.Error); ok && !ne.Timeout() {

@@ -16,18 +16,14 @@ func Do(client *http.Client, req *http.Request, attempts int, delay time.Duratio
 	for i := 0; i < attempts; i++ {
 
 		resp, err = client.Do(req)
-		// fmt.Printf("%s: %v\n", req.URL, err)
 
-		// shouldRetry, _ := retryablehttp.DefaultRetryPolicy(req.Context(), resp, err)
 		shouldRetry := CustomRetryPolicy(req.Context(), resp, err)
 
 		if !shouldRetry {
-			if err != nil {
-				return nil, err
-			}
+			break
+		}
 
-			return resp, nil
-		} else if err == nil && resp.Body != nil {
+		if err == nil && resp.Body != nil {
 			resp.Body.Close()
 		}
 
@@ -39,7 +35,7 @@ func Do(client *http.Client, req *http.Request, attempts int, delay time.Duratio
 
 	}
 
-	return nil, err
+	return resp, err
 }
 
 // TODO considering moving to a whitelist approach with options provided by caller
