@@ -104,7 +104,7 @@ func TestRetryClient(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	resp, err := Do(client, req, 3, time.Millisecond)
+	resp, err := Do(client, req, &Policy{Attempts: 3, Delay: time.Millisecond, Retry500Status: true})
 
 	if err != nil {
 		t.Fatalf("unexpected error, got: %#v", err)
@@ -132,7 +132,7 @@ func TestRetryTimeout(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	resp, err := Do(client, req, 2, time.Millisecond)
+	resp, err := Do(client, req, &Policy{Attempts: 2, Delay: time.Millisecond})
 
 	if err == nil {
 		t.Fatalf("expected error, got: %w", err)
@@ -172,7 +172,7 @@ func TestContextTimeout(t *testing.T) {
 		cancel()
 	}()
 
-	resp, err := Do(client, req, 2, time.Millisecond*100)
+	resp, err := Do(client, req, &Policy{Attempts: 3, Delay: time.Millisecond * 100})
 
 	// Checking our cancel of the context is challenging
 	// https://github.com/golang/go/blob/cc8838d645b2b7026c1f3aaceb011775c5ca3a08/src/net/http/client.go#L645-L649
